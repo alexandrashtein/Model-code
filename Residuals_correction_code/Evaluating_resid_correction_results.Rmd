@@ -1,0 +1,278 @@
+---
+title: "Residuals Interpolation results"
+author: "Alex Shtein"
+date: "6/27/2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Results of residuals correction stage for three stations
+
+## (1) Afula station
+
+```{r Results for Afula Station}
+
+# Load rmse function
+source("/media/qnap/Data/code/R_functions/rmspe.r")
+
+# Load the cross-validated predictions
+PM25_cv <- readRDS("/media/qnap/Projects/P028.IL.Israel.MAIAC.PM.V2/work/RDS_files/resid_check/PM25_cv.rds")
+
+AFU <- PM25_cv[[1]]
+
+# R2
+fit.mix <- summary(lm(PM25~pred.m3.mix,data=AFU))
+fit.mix$r.squared
+
+fit.mix <- summary(lm(PM25~pred.m3.mix.I,data=AFU))
+fit.mix$r.squared
+
+# Calculate residuals
+AFU$diff_Pred.ms= AFU$PM25-AFU$pred.m3.mix
+AFU$diff_Pred.ms.resid= AFU$PM25-AFU$pred.m3.mix.I
+
+# RMSE
+round(sqrt(mean((AFU$diff_Pred.ms)^2)),2)
+round(sqrt(mean((AFU$diff_Pred.ms.resid)^2)),2)
+
+# RMSE for days where resid correction was applied
+temp <- AFU[AFU$resid_IDW!=0,]
+round(sqrt(mean((temp$diff_Pred.ms)^2)),2)
+round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)
+```
+
+## Plots for northern Afula station
+
+```{r Afula station performance resutls, echo=FALSE}
+# Time series plot of Prediction for 2014-2016
+plot(AFU$PM25~AFU$day,type="l", main="Afula station time series",ylab="PM25", xlab="day")
+lines(AFU$pred.m3.mix~AFU$day,col="red")
+lines(AFU$pred.m3.mix.I~AFU$day,col="blue")
+legend(AFU$day[1],400, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Time series plot of Prediction for 2015
+temp <- AFU[AFU$day>="2015-01-01",]
+plot(temp$PM25~temp$day,type="l", main="Afula station time series for 2015",ylab="PM25", xlab="day")
+lines(temp$pred.m3.mix~temp$day,col="red")
+lines(temp$pred.m3.mix.I~temp$day,col="blue")
+legend(temp$day[1],400, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Residual plot for days where resid correction was applied
+temp <- temp[temp$resid_IDW!=0,]
+plot(temp$diff_Pred.ms~temp$day,type="p", main="Afula station residuals time series for 2015",ylab="PM25 residual", xlab="day",col="red")
+points(temp$diff_Pred.ms.resid~temp$day,type="p",col="blue")
+graphics::text(y=100,x=temp$day[25],labels=paste("RMSE Mixed Model=", round(sqrt(mean((temp$diff_Pred.ms)^2)),2)))
+graphics::text(y=80,x=temp$day[25],labels=paste("RMSE Mixed Model + resid=", round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)))
+legend(temp$day[1],range(temp$diff_Pred.ms)[2],
+       c("residual lmer","residual lmer+ resid interpolation"),
+       cex=0.8, col=c("red","blue"), pch=21:22, lty=1:2)
+
+# RMSE for days where resid correction was applied
+
+round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)
+
+```
+## (2) Beer Sheva station
+
+```{r Results for Beer-Sheva station}
+
+BSV <- PM25_cv[[15]]
+
+# R2 and RMSE
+fit.mix <- summary(lm(PM25~pred.m3.mix,data=BSV))
+print(rmse(residuals(fit.mix)))
+fit.mix$r.squared
+fit.improved <- summary(lm(PM25~pred.m3.mix.I,data=BSV))
+fit.improved$r.squared
+print(rmse(resid(fit.improved)))
+
+# Calculate residuals manually
+BSV$diff_Pred.ms= BSV$PM25-BSV$pred.m3.mix
+BSV$diff_Pred.ms.resid= BSV$PM25-BSV$pred.m3.mix.I
+
+# RMSE results manual
+round(sqrt(mean((BSV$diff_Pred.ms)^2)),2)
+round(sqrt(mean((BSV$diff_Pred.ms.resid)^2)),2)
+
+# RMSE for days where resid correction was applied
+temp <- BSV[BSV$resid_IDW!=0,]
+round(sqrt(mean((temp$diff_Pred.ms)^2)),2)
+round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)
+
+```
+## Plots for southern Beer Sheva station
+
+```{r Beer Sheva station plots, echo = FALSE}
+# Time series plot of Prediction for 2011-2016
+plot(BSV$PM25~BSV$day,type="l", main="Beer-Sheva station time series",ylab="PM25", xlab="day")
+lines(BSV$pred.m3.mix~BSV$day,col="red")
+lines(BSV$pred.m3.mix.I~BSV$day,col="blue")
+legend(BSV$day[1],300, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Time series plot of Prediction for 2015
+temp <- BSV[BSV$day>="2015-01-01",]
+plot(temp$PM25~temp$day,type="l", main="Beer-Sheva station time series for 2015",ylab="PM25", xlab="day")
+lines(temp$pred.m3.mix~temp$day,col="red")
+lines(temp$pred.m3.mix.I~temp$day,col="blue")
+legend(temp$day[50],350, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Time series of residuals in days where correction was applied
+temp <- BSV[BSV$day>="2015-01-01",]
+temp <- temp[temp$resid_IDW!=0,]
+
+# Calculate residuals manually
+temp$diff_Pred.ms= temp$PM25-temp$pred.m3.mix
+temp$diff_Pred.ms.resid= temp$PM25-temp$pred.m3.mix.I
+
+# Residual plot
+plot(temp$diff_Pred.ms~temp$day,type="p", main="Beer-Sheva station residuals time series for 2015",ylab="PM25 residual", xlab="day",col="red")
+points(temp$diff_Pred.ms.resid~temp$day,type="p",col="blue")
+graphics::text(y=100,x=temp$day[25],labels=paste("RMSE Mixed Model=", round(sqrt(mean((temp$diff_Pred.ms)^2)),2)))
+graphics::text(y=80,x=temp$day[25],labels=paste("RMSE Mixed Model + resid=", round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)))
+legend(temp$day[1],range(temp$diff_Pred.ms)[2], 
+       c("residual lmer","residual lmer+ resid interpolation"),
+       cex=0.8, col=c("red","blue"), pch=21:22, lty=1:2)
+
+# RMSE for days where resid correction was applied
+round(sqrt(mean((temp$diff_Pred.ms)^2)),2)
+round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)
+
+```
+
+## (3) Ashqelon station
+
+```{r Results for Ashqelon Station}
+
+ASS <- PM25_cv[[6]]
+
+# R2 and RMSE
+fit.mix <- summary(lm(PM25~pred.m3.mix,data=ASS))
+fit.improved <- summary(lm(PM25~pred.m3.mix.I,data=ASS))
+fit.mix$r.squared
+print(rmse(residuals(fit.mix)))
+fit.improved$r.squared
+print(rmse(resid(fit.improved)))
+
+# Calculate residuals
+ASS$diff_Pred.ms= ASS$PM25-ASS$pred.m3.mix
+ASS$diff_Pred.ms.resid= ASS$PM25-ASS$pred.m3.mix.I
+
+# RMSE
+round(sqrt(mean((ASS$diff_Pred.ms)^2)),2)
+round(sqrt(mean((ASS$diff_Pred.ms.resid)^2)),2)
+
+```
+
+## Plots for northern Ashkelon station
+
+```{r Ashkelon station performance resutls, echo=FALSE}
+# Time series plot of Prediction for 2014-2015
+plot(AFU$PM25~AFU$day,type="l", main="Ashkelon station time series",ylab="PM25", xlab="day")
+lines(ASS$pred.m3.mix~ASS$day,col="red")
+lines(ASS$pred.m3.mix.I~ASS$day,col="blue")
+legend(ASS$day[1],400, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Time series plot of Prediction for 2015
+temp <- ASS[ASS$day>="2015-01-01",]
+plot(temp$PM25~temp$day,type="l", main="Ashkelon station time series for 2015",ylab="PM25", xlab="day")
+lines(temp$pred.m3.mix~temp$day,col="red")
+lines(temp$pred.m3.mix.I~temp$day,col="blue")
+legend(temp$day[1],200, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# RMSE for days where resid correction was applied
+temp <- ASS[ASS$resid_IDW!=0,]
+temp <- temp[temp$day>="2015-01-01",]
+
+# Residual plots for 2015 
+plot(abs(temp$diff_Pred.ms)~temp$day,col="red",ylab="residual",xlab="Day",main="Ashqelon residual plot for 2015")
+points(abs(temp$diff_Pred.ms.resid)~temp$day,col="blue")
+graphics::text(y=40,x=temp$day[55],labels=paste("RMSE Mixed Model=", round(sqrt(mean((temp$diff_Pred.ms)^2)),2)))
+graphics::text(y=35,x=temp$day[55],labels=paste("RMSE Mixed Model + resid=", round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)))
+legend(temp$day[1],range(abs(temp$diff_Pred.ms))[2], 
+       c("residual lmer","residual lmer+ resid interpolation"),
+       cex=0.8, col=c("red","blue"), pch=21:22, lty=1:2)
+```
+
+
+## (1) Afula station
+
+```{r Results for Ahula Station}
+
+# Load rmse function
+source("/media/qnap/Data/code/R_functions/rmspe.r")
+
+# Load the cross-validated predictions
+PM25_cv <- readRDS("/media/qnap/Projects/P028.IL.Israel.MAIAC.PM.V2/work/RDS_files/resid_check/PM25_cv.rds")
+
+AHU <- PM25_cv[[2]]
+
+# R2 and RMSE
+fit.mix <- summary(lm(PM25~pred.m3.mix,data=AHU,weights = NULL))
+fit.improved <- summary(lm(PM25~pred.m3.mix.I,data=AHU))
+fit.mix$r.squared
+print(rmse(residuals(fit.mix)))
+fit.improved$r.squared
+print(rmse(resid(fit.improved)))
+
+# Calculate residuals
+AHU$diff_Pred.ms= AHU$PM25-AHU$pred.m3.mix
+AHU$diff_Pred.ms.resid= AHU$PM25-AHU$pred.m3.mix.I
+
+# RMSE
+round(sqrt(mean((AHU$diff_Pred.ms)^2)),2)
+round(sqrt(mean((AHU$diff_Pred.ms.resid)^2)),2)
+
+# RMSE for days where resid correction was applied
+temp <- AHU[AHU$resid_IDW!=0,]
+round(sqrt(mean((temp$diff_Pred.ms)^2)),2)
+round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)
+```
+
+## Plots for northern AHUla station
+
+```{r AHUla station performance resutls, echo=FALSE}
+# Time series plot of Prediction for 2014-2016
+plot(AHU$PM25~AHU$day,type="l", main="AHUla station time series",ylab="PM25", xlab="day")
+lines(AHU$pred.m3.mix~AHU$day,col="red")
+lines(AHU$pred.m3.mix.I~AHU$day,col="blue")
+legend(AHU$day[1],400, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Time series plot of Prediction for 2015
+temp <- AHU[AHU$day>="2015-01-01",]
+plot(temp$PM25~temp$day,type="l", main="AHUla station time series for 2015",ylab="PM25", xlab="day")
+lines(temp$pred.m3.mix~temp$day,col="red")
+lines(temp$pred.m3.mix.I~temp$day,col="blue")
+legend(temp$day[1],400, 
+       c("observed","predicted lmer","predicted lmer+ resid correction"),
+       cex=0.8, col=c("black","red","blue"), pch=21:22, lty=1:2)
+
+# Residual plot for days where resid correction was applied
+temp <- temp[temp$resid_IDW!=0,]
+plot(temp$diff_Pred.ms~temp$day,type="p", main="AHUla station residuals time series for 2015",ylab="PM25 residual", xlab="day",col="red")
+points(temp$diff_Pred.ms.resid~temp$day,type="p",col="blue")
+graphics::text(y=20,x=temp$day[25],labels=paste("RMSE Mixed Model=", round(sqrt(mean((temp$diff_Pred.ms)^2)),2)))
+graphics::text(y=15,x=temp$day[25],labels=paste("RMSE Mixed Model + resid=", round(sqrt(mean((temp$diff_Pred.ms.resid)^2)),2)))
+legend(temp$day[1],range(temp$diff_Pred.ms)[2],
+       c("residual lmer","residual lmer+ resid interpolation"),
+       cex=0.8, col=c("red","blue"), pch=21:22, lty=1:2)
+
+```
