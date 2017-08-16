@@ -1,6 +1,5 @@
 ## This code converts PBL data from nc format to csv file
 
-
 library(magrittr)
 library(ncdf4)
 library(raster)
