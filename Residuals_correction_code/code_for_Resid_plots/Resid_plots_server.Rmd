@@ -1,0 +1,220 @@
+---
+title: "Residuals plot"
+author: "Alex Shtein"
+date: "June 01, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## General
+
+The plots bellow present the residuals from the calibration stage (MOD1- as we call it).
+The MOD1 or calibration stage dataset includs PM monitors data (PM2.5 concentration) and with the collocated satellite data (AOD variable in the nearest range of 1.5 km) and additional spatial temporal predictors.
+
+```{r calibration stage residuals}
+
+## Load libraries
+library(lme4)
+library(ggplot2)
+library(data.table)
+library(mgcv)
+library(dplyr)
+library(rgdal)
+
+## Load Mod1
+mod1 <-readRDS("/media/qnap/Projects/P028.IL.Israel.MAIAC.PM.V2/work/RDS_files/mod1/mod1.AQ.2003_2015.PM25_Daily/mod1.AQ.2003_2015.PM25_Daily_Re_Clean.rds")
+
+## This is the variable that we would like to predict (PM2.5)
+summary(mod1$PM25)
+hist(mod1$PM25,col="red")
+
+# Define calibration formula - mixed effects model
+m1.formula <- as.formula(PM25 ~ aod_047 
+                         ## Spatial predictors
+                         +Elev.s +ndvi.s+Dis_Rd1_2012.s+P_In.s+P_Ur.s+P_Ag.s+P_OS.s+
+                         ## Temporal predictors
+                         daily_hpbl.s+Temp_D.s+NO2_D.s
+                         ## Random slope and intercept for per day nested in metregion
+                         +(1+aod_047|day/metreg))
+
+mod1fit <- lmer(m1.formula,data=mod1)
+summary(mod1fit)
+mod1$pred.m1 <- predict(mod1fit)
+mod1$resid=residuals(mod1fit)
+print(summary(lm(PM25~pred.m1,data=mod1))$r.squared)
+
+```
+
+## Plots of residuals
+
+```{r Residuals plot, echo=TRUE}
+qqnorm(mod1$resid)
+qqline(mod1$resid)
+plot(mod1$resid~mod1$PM25,main="residuals ~ observed PM2.5")
+hist(mod1$resid,col="yellow")
+summary(mod1$resid)
+```
+## Plot the residuals spatially
+
+Note that in each day we have differnt amount of stations. This happens because in some days we do not have co-located AOD measurement in part of the stations.
+
+```{r, echo=FALSE, message=FALSE}
+library(plyr)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+
+## Load border
+newProj=CRS("+proj=tmerc +lat_0=31.7343936111111 +lon_0=35.2045169444445 +k=1.0000067 +x_0=219529.584 +y_0=626907.39 +ellps=GRS80 +towgs84=-24.002400,-17.103200,-17.844400,-0.330090,-1.852690,1.669690,5.424800 +units=m +no_defs")
+
+pol=readOGR(dsn="/media/qnap/Projects/P028.IL.Israel.MAIAC.PM.V2/work/Qgis/General/Project_border/Project_aoi","Project_border_latlon")
+pol = spTransform(pol, newProj)
+pol@data$id = rownames(pol@data)
+pol.points = fortify(pol, region="id")
+pol.df = join(pol.points, pol@data, by="id")
+
+mod1_1=dplyr::filter(mod1,day=="2015-08-01")
+
+p1=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=PM25),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightgreen",high="red")+ ggtitle("PM2.5 concentration for 1.8.15")
+
+p2=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=resid),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightblue",high="black")+ ggtitle("PM2.5 residuals for 1.8.15")
+
+grid.arrange(p1, p2, ncol=2)
+
+mod1_1=dplyr::filter(mod1,day=="2015-08-03")
+
+p3=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=PM25),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightgreen",high="red")+ ggtitle("PM2.5 concentration for 3.8.15")
+
+p4=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=resid),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightblue",high="black")+ ggtitle("PM2.5 residuals for 3.8.15")
+
+grid.arrange(p3, p4, ncol=2)
+
+mod1_1=dplyr::filter(mod1,day=="2015-08-08")
+
+p3=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=PM25),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightgreen",high="red")+ ggtitle("PM2.5 concentration for 8.8.15")
+
+p4=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=resid),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightblue",high="black")+ ggtitle("PM2.5 residuals for 8.8.15")
+
+grid.arrange(p3, p4, ncol=2)
+
+```
+
+## Transforming PM2.5 and evaluating the residuals
+
+```{r}
+# Define calibration formula - mixed effects model- with transformation of PM
+mod1$PM25.sq=sqrt(mod1$PM25)
+m2.formula <- as.formula(PM25.sq ~ aod_047 
+                         ## Spatial predictors
+                         +Elev.s +ndvi.s+Dis_Rd1_2012.s+P_In.s+P_Ur.s+P_Ag.s+P_OS.s+
+                         ## Temporal predictors
+                         daily_hpbl.s+Temp_D.s+NO2_D.s
+                         ## Random slope and intercept for per day nested in metregion
+                         +(1+aod_047|day/metreg))
+
+mod2fit <- lmer(m2.formula,data=mod1)
+summary(mod2fit)
+mod1$pred.m1_sq <- predict(mod2fit)
+mod1$pred.m1_sq2 <- mod1$pred.m1_sq*mod1$pred.m1_sq
+mod1$resid_sq=residuals(mod2fit)
+mod1$resid_sq2=(mod1$resid_sq)^2
+print(summary(lm(PM25~pred.m1_sq2,data=mod1))$r.squared)
+```
+
+## Plots of residuals (after transforming PM2.5)
+
+```{r Residuals plot after transformation, echo=TRUE}
+qqnorm(mod1$resid_sq)
+qqline(mod1$resid_sq)
+hist(mod1$resid_sq,col="yellow")
+plot(mod1$resid_sq~mod1$PM25.sq,main="sqrt residuals ~ sqrt observed PM2.5")
+summary(mod1$resid_sq)
+summary(mod1$resid_sq2)
+```
+
+## Plot the residuals spatially (for the model with the transformed PM2.5) 
+
+Note that in each day we have different amount of stations. This happens because in some days we do not have co-located AOD measurement in part of the stations.
+
+```{r, echo=FALSE, message=FALSE}
+# load addtional libraries
+library(plyr)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+
+## Load border
+newProj=CRS("+proj=tmerc +lat_0=31.7343936111111 +lon_0=35.2045169444445 +k=1.0000067 +x_0=219529.584 +y_0=626907.39 +ellps=GRS80 +towgs84=-24.002400,-17.103200,-17.844400,-0.330090,-1.852690,1.669690,5.424800 +units=m +no_defs")
+
+pol=readOGR(dsn="/media/qnap/Projects/P028.IL.Israel.MAIAC.PM.V2/work/Qgis/General/Project_border/Project_aoi","Project_border_latlon")
+pol = spTransform(pol, newProj)
+pol@data$id = rownames(pol@data)
+pol.points = fortify(pol, region="id")
+pol.df = join(pol.points, pol@data, by="id")
+
+mod1_1=dplyr::filter(mod1,day=="2015-08-01")
+
+p1=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=PM25),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightgreen",high="red")+ ggtitle("PM2.5 concentration for 1.8.15")
+
+p2=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=resid_sq2),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightblue",high="black")+ ggtitle("PM2.5 residuals for 1.8.15")
+
+grid.arrange(p1, p2, ncol=2)
+
+mod1_1=dplyr::filter(mod1,day=="2015-08-03")
+
+p3=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=PM25),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightgreen",high="red")+ ggtitle("PM2.5 concentration for 3.8.15")
+
+p4=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=resid_sq2),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightblue",high="black")+ ggtitle("PM2.5 residuals for 3.8.15")
+
+grid.arrange(p3, p4, ncol=2)
+
+mod1_1=dplyr::filter(mod1,day=="2015-08-08")
+
+p5=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=PM25),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightgreen",high="red")+ ggtitle("PM2.5 concentration for 8.8.15")
+
+p6=ggplot() + 
+  geom_point(data=mod1_1, aes(x_stn_ITM,y_stn_ITM,color=resid_sq2),alpha=1, size=2)+
+  geom_polygon(data=pol.df,aes(long,lat,group=group),colour="black", fill=NA)+
+  scale_color_gradient("PM2.5",low="lightblue",high="black")+ ggtitle("PM2.5 residuals for 8.8.15")
+
+grid.arrange(p5, p6, ncol=2)
+
+```
